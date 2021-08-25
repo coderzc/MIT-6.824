@@ -1,0 +1,7 @@
+# Created by .ignore support plugin (hsz.mobi)
+pkg/
+api.key
+.api.key.trimmed
+*-handin.tar.gz
+*.iml
+.idea/

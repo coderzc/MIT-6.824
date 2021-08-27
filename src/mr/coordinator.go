@@ -6,10 +6,8 @@ import "os"
 import "net/rpc"
 import "net/http"
 
-
 type Coordinator struct {
 	// Your definitions here.
-	map[string][]
 
 }
 
@@ -29,7 +27,6 @@ func (c *Coordinator) nextInputSplit(inputSplit *InputSplit) error {
 	// TODO
 	return nil
 }
-
 
 //
 // start a thread that listens for RPCs from worker.go
@@ -56,7 +53,6 @@ func (c *Coordinator) Done() bool {
 
 	// Your code here.
 
-
 	return ret
 }
 
@@ -69,7 +65,6 @@ func MakeCoordinator(files []string, nReduce int) *Coordinator {
 	c := Coordinator{}
 
 	// Your code here.
-
 
 	c.server()
 	return &c

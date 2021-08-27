@@ -1,10 +1,13 @@
 package mr
 
-import "fmt"
+import (
+	"fmt"
+	"io/ioutil"
+	"os"
+)
 import "log"
 import "net/rpc"
 import "hash/fnv"
-
 
 //
 // Map functions return a slice of KeyValue.
@@ -24,18 +27,64 @@ func ihash(key string) int {
 	return int(h.Sum32() & 0x7fffffff)
 }
 
-
 //
 // main/mrworker.go calls this function.
 //
-func Worker(mapf func(string, string) []KeyValue,
+func Worker(
+	mapf func(string, string) []KeyValue,
 	reducef func(string, []string) string) {
 
 	// Your worker implementation here.
+	// Start up map worker
+	go func() {
+		for true {
+			nextSplit, err := nextInputSplit()
+			if err != nil {
+				log.Fatalf("failed to load input split")
+			}
+
+			if nextSplit != nil {
+				mapKVs := mapf(nextSplit.Key, nextSplit.Value)
+			}
+
+		}
+	}()
 
 	// uncomment to send the Example RPC to the coordinator.
 	// CallExample()
+}
 
+func nextInputSplit() (*KeyValue, error) {
+	nextSplit := InputSplit{}
+
+	call("Coordinator.NextInputSplit", nil, &nextSplit)
+
+	if nextSplit.End {
+		return nil, nil
+	}
+
+	switch nextSplit.ValueType {
+	case FILENAME:
+		filename := nextSplit.Split.Value
+		file, err := os.Open(filename)
+		if err != nil {
+			return nil, fmt.Errorf("cannot open %v", filename)
+		}
+		content, err := ioutil.ReadAll(file)
+		if err != nil {
+			return nil, fmt.Errorf("cannot read %v", filename)
+		}
+		file.Close()
+
+		nextSplit := KeyValue{
+			Key:   filename,
+			Value: string(content),
+		}
+		return &nextSplit, nil
+	default:
+		return nil, fmt.Errorf("cannot identify valueType: %d", nextSplit.ValueType)
+
+	}
 }
 
 //

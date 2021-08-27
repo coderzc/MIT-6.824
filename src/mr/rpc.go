@@ -22,8 +22,16 @@ type ExampleReply struct {
 	Y int
 }
 
-// Add your RPC definitions here.
+type ValueType int32
 
+const FILENAME ValueType = 0
+
+// Add your RPC definitions here.
+type InputSplit struct {
+	Split     *KeyValue
+	ValueType ValueType
+	End       bool
+}
 
 // Cook up a unique-ish UNIX-domain socket name
 // in /var/tmp, for the coordinator.

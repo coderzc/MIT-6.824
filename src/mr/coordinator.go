@@ -9,6 +9,7 @@ import "net/http"
 
 type Coordinator struct {
 	// Your definitions here.
+	map[string][]
 
 }
 
@@ -21,6 +22,11 @@ type Coordinator struct {
 //
 func (c *Coordinator) Example(args *ExampleArgs, reply *ExampleReply) error {
 	reply.Y = args.X + 1
+	return nil
+}
+
+func (c *Coordinator) nextInputSplit(inputSplit *InputSplit) error {
+	// TODO
 	return nil
 }
 

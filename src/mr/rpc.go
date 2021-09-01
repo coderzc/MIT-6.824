@@ -14,23 +14,31 @@ import "strconv"
 // and reply for an RPC.
 //
 
-type ExampleArgs struct {
-	X int
-}
-
-type ExampleReply struct {
-	Y int
-}
-
-type ValueType int32
-
-const FILENAME ValueType = 0
-
 // Add your RPC definitions here.
-type InputSplit struct {
-	Split     *KeyValue
-	ValueType ValueType
-	End       bool
+type TaskArgs struct {
+	WorkerId int
+}
+
+type TaskReply struct {
+	Task *Task
+	Done bool
+}
+
+type ReportTaskArgs struct {
+	Succeeded bool
+	TaskIndex int
+	WorkerId  int
+	Phase     TaskPhase
+}
+
+type ReportTaskReply struct {
+}
+
+type RegisterArgs struct {
+	WorkerId int
+}
+
+type RegisterReply struct {
 }
 
 // Cook up a unique-ish UNIX-domain socket name

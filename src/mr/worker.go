@@ -156,7 +156,7 @@ func (w worker) reportTask(task *Task, succeeded bool) {
 }
 
 func (w worker) doMapTask(task *Task) error {
-	inputSplit, err := parseInputSplit(&task.InputSplit)
+	inputSplit, err := parseInputSplit(task.InputSplit)
 	if err != nil {
 		log.Println("failed to load input split")
 		return err

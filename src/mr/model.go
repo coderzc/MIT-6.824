@@ -38,7 +38,7 @@ type InputSplit struct {
 }
 
 type Task struct {
-	InputSplit InputSplit
+	InputSplit *InputSplit
 	Phase      TaskPhase
 	NMap       int
 	NReduce    int

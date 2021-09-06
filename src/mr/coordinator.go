@@ -167,7 +167,7 @@ func (c *Coordinator) initMapPhase(files []string) {
 	for i, file := range files {
 		task := Task{
 			Phase: MapPhase,
-			InputSplit: InputSplit{
+			InputSplit: &InputSplit{
 				ValueType: FILENAME,
 				Split: &KeyValue{
 					Key:   strconv.Itoa(i),

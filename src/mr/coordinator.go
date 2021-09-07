@@ -211,14 +211,12 @@ func (c *Coordinator) initReducePhase() {
 }
 
 func (c *Coordinator) startSchedule() {
-	t := time.NewTicker(ScheduleInterval)
-	for {
-		select {
-		case <-t.C:
-			c.schedule()
-			if c.Done() {
-				t.Stop()
-			}
+	ticker := time.NewTicker(ScheduleInterval)
+	defer ticker.Stop()
+	for range ticker.C {
+		c.schedule()
+		if c.Done() {
+			break
 		}
 	}
 }

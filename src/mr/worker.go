@@ -119,7 +119,7 @@ func (w *worker) run() {
 
 		task := taskReply.Task
 		log.Printf("pull a task on worker[%v], task:%+v", w.workerId, task)
-		if task == nil || !task.Alive {
+		if task == nil {
 			// ignore it
 			continue
 		}

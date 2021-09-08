@@ -43,5 +43,4 @@ type Task struct {
 	NMap       int
 	NReduce    int
 	TaskIndex  int
-	Alive      bool
 }

@@ -39,7 +39,7 @@ func (c *Coordinator) PullTask(taskArgs *TaskArgs, taskReply *TaskReply) error {
 	if task, ok := <-c.taskCh; ok {
 		taskReply.Task = &task
 
-		if task.Alive {
+		if c.taskStatuss[task.TaskIndex].TaskState == TaskReady {
 			c.lock.Lock()
 			defer c.lock.Unlock()
 
@@ -125,15 +125,14 @@ func (c *Coordinator) schedule() {
 		switch taskStatus.TaskState {
 		case TaskRunning:
 			if time.Now().After(taskStatus.Deadline) {
+				// TODO Cancel old task
 				taskStatus.TaskState = TaskReady
-				taskStatus.Task.Alive = true
 				c.taskCh <- *taskStatus.Task
 			}
 			allDone = false
 		case TaskDone:
 		case TaskError:
 			taskStatus.TaskState = TaskReady
-			taskStatus.Task.Alive = true
 			c.taskCh <- *taskStatus.Task
 			allDone = false
 		case TaskReady:
@@ -177,7 +176,6 @@ func (c *Coordinator) initMapPhase(files []string) {
 			TaskIndex: i,
 			NMap:      c.nMap,
 			NReduce:   c.nReduce,
-			Alive:     true,
 		}
 
 		c.taskStatuss[i] = &TaskStatus{
@@ -200,7 +198,6 @@ func (c *Coordinator) initReducePhase() {
 			TaskIndex: i,
 			NMap:      c.nMap,
 			NReduce:   c.nReduce,
-			Alive:     true,
 		}
 		c.taskStatuss[i] = &TaskStatus{
 			TaskState: TaskReady,

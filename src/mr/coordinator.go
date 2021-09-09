@@ -12,8 +12,8 @@ import "net/rpc"
 import "net/http"
 
 const (
-	TaskTimeout      = 10 * time.Second
-	ScheduleInterval = time.Millisecond * 500
+	TaskTimeout      = 8 * time.Second
+	ScheduleInterval = time.Millisecond * 300
 )
 
 type Coordinator struct {
@@ -125,7 +125,6 @@ func (c *Coordinator) schedule() {
 		switch taskStatus.TaskState {
 		case TaskRunning:
 			if time.Now().After(taskStatus.Deadline) {
-				// TODO Cancel old task
 				taskStatus.TaskState = TaskReady
 				c.taskCh <- *taskStatus.Task
 			}

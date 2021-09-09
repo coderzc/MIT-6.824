@@ -13,7 +13,7 @@ import "net/rpc"
 import "hash/fnv"
 
 const (
-	MapFileDir     = "."
+	DataFileDir    = "."
 	InitReduceSize = 10
 )
 
@@ -68,11 +68,11 @@ func parseInputSplit(split *InputSplit) (*KeyValue, error) {
 }
 
 func reduceName(mapIndex int, reduceIndex int) string {
-	return fmt.Sprintf("%s/mr-%d-%d.json", MapFileDir, mapIndex, reduceIndex)
+	return fmt.Sprintf("%s/mr-%d-%d.json", DataFileDir, mapIndex, reduceIndex)
 }
 
 func outputName(reduceIndex int) string {
-	return fmt.Sprintf("%s/mr-out-%d.txt", MapFileDir, reduceIndex)
+	return fmt.Sprintf("%s/mr-out-%d.txt", DataFileDir, reduceIndex)
 }
 
 type worker struct {
@@ -220,7 +220,7 @@ func (w worker) doReduceTask(task *Task) error {
 	sort.Sort(ByKey(reduces))
 
 	// reduce
-	ofile, err := os.Create(outputName(task.TaskIndex))
+	ofile, err := ioutil.TempFile("", "mr-tmp-out-*")
 	if err != nil {
 		return err
 	}
@@ -229,7 +229,7 @@ func (w worker) doReduceTask(task *Task) error {
 	for i, kv := range reduces {
 		if kv.Key != key && i != 0 {
 			result := w.reducef(key, values)
-			if err := w.output(ofile, key, result); err != nil {
+			if err := w.write(ofile, key, result); err != nil {
 				return err
 			}
 			values = values[:0]
@@ -238,16 +238,21 @@ func (w worker) doReduceTask(task *Task) error {
 		values = append(values, kv.Value)
 		if i == len(reduces)-1 {
 			result := w.reducef(key, values)
-			if err := w.output(ofile, key, result); err != nil {
+			if err := w.write(ofile, key, result); err != nil {
 				return err
 			}
 		}
 	}
 
+	err = os.Rename(ofile.Name(), outputName(task.TaskIndex))
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
-func (w *worker) output(ofile io.Writer, key string, result string) error {
+func (w *worker) write(ofile io.Writer, key string, result string) error {
 	_, err := fmt.Fprintf(ofile, "%v %v\n", key, result)
 	if err != nil {
 		return err

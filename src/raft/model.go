@@ -24,9 +24,9 @@ type ApplyMsg struct {
 }
 
 type LogEntry struct {
-	command interface{}
-	term    int
-	idx     int64
+	Command interface{}
+	Term    int
+	Idx     int64
 }
 
 type NodeState string
@@ -61,11 +61,6 @@ const (
 	MsgPreVoteResp    MessageType = 18
 )
 
-type Message struct {
-	msgt MessageType
-	Data interface{}
-}
-
 //============================== RPC ===================================//
 //
 // example RequestVote RPC arguments structure.
@@ -73,20 +68,30 @@ type Message struct {
 //
 type RequestVoteArgs struct {
 	// Your data here (2A, 2B).
-	term         int
-	candidateId  int
-	lastLogIndex uint64
-	lastLogTerm  int
+	Term         int
+	CandidateId  int
+	LastLogIndex uint64
+	LastLogTerm  int
 }
 
-//
-// example RequestVote RPC reply structure.
-// field names must start with capital letters!
-//
 type RequestVoteReply struct {
 	// Your data here (2A).
-	term        int
-	voteGranted bool
+	Term        int
+	VoteGranted bool
+}
+
+type AppendEntriesArgs struct {
+	Term         int
+	LeaderId     int
+	PrevLogIndex uint64
+	PrevLogTerm  int
+	Entries      []LogEntry
+	LeaderCommit uint64
+}
+
+type AppendEntriesReply struct {
+	Term    int
+	Success bool
 }
 
 //============================== RPC ===================================//

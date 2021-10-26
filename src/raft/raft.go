@@ -67,6 +67,8 @@ type Raft struct {
 // return currentTerm and whether this server
 // believes it is the leader.
 func (rf *Raft) GetState() (int, bool) {
+	rf.mu.Lock()
+	defer rf.mu.Unlock()
 
 	var term int
 	var isleader bool
@@ -135,104 +137,6 @@ func (rf *Raft) Snapshot(index int, snapshot []byte) {
 }
 
 //
-// example RequestVote RPC handler.
-//
-func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply) {
-	rf.mu.Lock()
-	defer rf.mu.Unlock()
-
-	requestTerm := args.Term
-	if requestTerm < rf.currentTerm {
-		reply.Term = rf.currentTerm
-		reply.Success = false
-		return
-	}
-
-	if requestTerm >= rf.currentTerm {
-		rf.becomeFollower(requestTerm, args.LeaderId)
-		if rf.state == Candidate {
-			rf.votedFor = NoneID
-		}
-		reply.Term = requestTerm
-		reply.Success = rf.appendLogs(args)
-		return
-	}
-}
-
-func (rf *Raft) appendLogs(args *AppendEntriesArgs) bool {
-	return true
-}
-
-func (rf *Raft) RequestVote(args *RequestVoteArgs, reply *RequestVoteReply) {
-	// Your code here (2A, 2B).
-	rf.mu.Lock()
-	defer rf.mu.Unlock()
-	requestTerm := args.Term
-
-	if requestTerm < rf.currentTerm {
-		rf.voteRefuse(reply, rf.currentTerm)
-		return
-	}
-
-	if requestTerm > rf.currentTerm &&
-		rf.isNewThanMe(args.LastLogIndex, args.LastLogTerm) {
-		rf.voteGrant(reply, args.CandidateId, requestTerm)
-		rf.becomeFollower(requestTerm, NoneID)
-		return
-	}
-
-	switch rf.state {
-	case Follower:
-		if rf.votedFor == NoneID || rf.votedFor == args.CandidateId {
-			if rf.isNewThanMe(args.LastLogIndex, args.LastLogTerm) {
-				rf.voteGrant(reply, args.CandidateId, requestTerm)
-			}
-		}
-		rf.voteRefuse(reply, rf.currentTerm)
-	case Candidate: //已经给自己投过票
-		rf.voteRefuse(reply, rf.currentTerm)
-	case Leader:
-		rf.voteRefuse(reply, rf.currentTerm)
-	}
-}
-
-func (rf *Raft) isNewThanMe(lastLogIndex uint64, lastLogTerm int) bool {
-	myLastLogTerm := 0
-	if rf.lastLogIndex > 0 {
-		myLastLogTerm = rf.logs[rf.lastLogIndex-1].Term
-	}
-
-	if lastLogTerm > myLastLogTerm ||
-		lastLogIndex >= rf.lastLogIndex {
-		return true
-	} else {
-		return false
-	}
-}
-
-func (rf *Raft) voteGrant(reply *RequestVoteReply, voteFor int, latestTerm int) {
-	reply.VoteGranted = true
-	reply.Term = latestTerm
-	rf.currentTerm = latestTerm
-	rf.votedFor = voteFor
-}
-
-func (rf *Raft) voteRefuse(reply *RequestVoteReply, latestTerm int) {
-	reply.VoteGranted = false
-	reply.Term = latestTerm
-}
-
-func (rf *Raft) appliedLog() bool {
-	if rf.commitIndex > rf.lastApplied {
-		// 执行命令
-		rf.lastApplied++
-		return false
-	} else {
-		return true
-	}
-}
-
-//
 // example code to send a RequestVote RPC to a server.
 // server is the index of the target server in rf.peers[].
 // expects RPC arguments in args.
@@ -274,6 +178,64 @@ func (rf *Raft) sendAppendEntries(
 	ok := rf.peers[server].Call("Raft.AppendEntries", args, reply)
 	return ok
 }
+
+// ============================ RPC request handler ============================
+func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply) {
+	rf.mu.Lock()
+	defer rf.mu.Unlock()
+
+	requestTerm := args.Term
+	if requestTerm < rf.currentTerm {
+		reply.Term = rf.currentTerm
+		reply.Success = false
+		return
+	}
+
+	if requestTerm >= rf.currentTerm {
+		rf.becomeFollower(requestTerm, args.LeaderId)
+		if rf.state == Candidate {
+			rf.votedFor = NoneID
+		}
+		reply.Term = requestTerm
+		reply.Success = rf.appendLogs(args)
+		return
+	}
+}
+
+func (rf *Raft) RequestVote(args *RequestVoteArgs, reply *RequestVoteReply) {
+	// Your code here (2A, 2B).
+	rf.mu.Lock()
+	defer rf.mu.Unlock()
+	requestTerm := args.Term
+
+	if requestTerm < rf.currentTerm {
+		rf.voteRefuse(reply, rf.currentTerm)
+		return
+	}
+
+	if requestTerm > rf.currentTerm &&
+		rf.isNewThanMe(args.LastLogIndex, args.LastLogTerm) {
+		rf.voteGrant(reply, args.CandidateId, requestTerm)
+		rf.becomeFollower(requestTerm, NoneID)
+		return
+	}
+
+	switch rf.state {
+	case Follower:
+		if rf.votedFor == NoneID || rf.votedFor == args.CandidateId {
+			if rf.isNewThanMe(args.LastLogIndex, args.LastLogTerm) {
+				rf.voteGrant(reply, args.CandidateId, requestTerm)
+			}
+		}
+		rf.voteRefuse(reply, rf.currentTerm)
+	case Candidate: //已经给自己投过票
+		rf.voteRefuse(reply, rf.currentTerm)
+	case Leader:
+		rf.voteRefuse(reply, rf.currentTerm)
+	}
+}
+
+// ============================ RPC request handler ============================
 
 //
 // the service using Raft (e.g. a k/v server) wants to start
@@ -321,11 +283,10 @@ func (rf *Raft) killed() bool {
 }
 
 // The ticker go routine starts a new election if this peer hasn't received
-// ============================ heartsbeats recently.=======================
+// ============================ heartsbeats recently.===========================
 func (rf *Raft) ticker() {
 	rf.resetElectionTimer()
 	for !rf.killed() {
-
 		// Your code here to check if a leader election should
 		// be started and to randomize sleeping time using
 		// time.Sleep().
@@ -335,7 +296,7 @@ func (rf *Raft) ticker() {
 		case <-rf.heartbeatTicker.C:
 			rf.tickHeartbeat()
 		default:
-			DPrintf("A tick missed to fire. Node blocks too long!")
+			DPrintf("a tick missed to fire. Node blocks too long!")
 		}
 	}
 	rf.electionTimer.Stop()
@@ -359,37 +320,37 @@ func (rf *Raft) tickElection() {
 func (rf *Raft) tickHeartbeat() {
 	rf.mu.Lock()
 	defer rf.mu.Unlock()
-	if rf.state == Leader {
-		for i, _ := range rf.peers {
-			agrs := AppendEntriesArgs{
-				Term:         rf.currentTerm,
-				LeaderId:     rf.me,
-				PrevLogIndex: 0,
-				PrevLogTerm:  0,
-				LeaderCommit: 0,
-			}
-			reply := AppendEntriesReply{}
-			if i != rf.me {
-				go func(toId int) {
-					ok := rf.sendAppendEntries(i, &agrs, &reply)
-					if ok {
-						rf.handleAppendEntriesReply(reply)
-					} else {
-						log.Printf("sendReplicateLog failed, from:%v to:%v", rf.me, toId)
-					}
-				}(i)
-			}
+	if rf.state != Leader {
+		log.Printf("tick heartbeat on %v, but current is not leader, ignore", rf.me)
+		return
+	}
+	for i, _ := range rf.peers {
+		agrs := AppendEntriesArgs{
+			Term:         rf.currentTerm,
+			LeaderId:     rf.me,
+			PrevLogIndex: 0,
+			PrevLogTerm:  0,
+			LeaderCommit: 0,
+		}
+		reply := AppendEntriesReply{}
+		if i != rf.me {
+			go func(toId int) {
+				ok := rf.sendAppendEntries(toId, &agrs, &reply)
+				if ok {
+					rf.handleAppendEntriesReply(reply)
+				} else {
+					log.Printf("sendReplicateLog failed, from:%v to:%v", rf.me, toId)
+				}
+			}(i)
 		}
 	}
 }
-
-// ============================ heartsbeats recently.=======================
 
 func (rf *Raft) startElection() {
 	rf.currentTerm++
 	rf.votedFor = rf.me
 
-	DPrintf("startElection, term:%v, candidateId:%v", rf.currentTerm, rf.me)
+	log.Printf("startElection, term:%v, candidateId:%v", rf.currentTerm, rf.me)
 	// 重置选举超时计时器
 	rf.resetElectionTimer()
 	lastLogTerm := -1
@@ -418,6 +379,9 @@ func (rf *Raft) startElection() {
 	}
 }
 
+// ============================ heartsbeats recently.===========================
+
+// ============================ handle rpc Reply ===============================
 func (rf *Raft) handleRequestVoteReply(reply RequestVoteReply, voteGrants *int) {
 	replyTerm := reply.Term
 	if replyTerm > rf.currentTerm {
@@ -440,13 +404,24 @@ func (rf *Raft) handleRequestVoteReply(reply RequestVoteReply, voteGrants *int) 
 }
 
 func (rf *Raft) handleAppendEntriesReply(reply AppendEntriesReply) {
+	rf.mu.Lock()
+	defer rf.mu.Unlock()
+
 	if reply.Term > rf.currentTerm {
 		rf.becomeFollower(reply.Term, NoneID)
 		// reset votedFor
 		rf.votedFor = NoneID
 	}
+
+	if rf.state != Leader {
+		log.Printf("recv append entries reply on %v, but current is not leader, ignore", rf.me)
+		return
+	}
 }
 
+// ============================ handle rpc Reply ===============================
+
+// =================================== role transform ==========================
 func (rf *Raft) becomeLeader() {
 	if rf.state == Leader {
 		return
@@ -480,6 +455,48 @@ func (rf *Raft) becomeCandidate() {
 	}
 	rf.resetElectionTimer()
 	rf.state = Candidate
+}
+
+// =================================== role transform ==========================
+
+func (rf *Raft) voteGrant(reply *RequestVoteReply, voteFor int, latestTerm int) {
+	reply.VoteGranted = true
+	reply.Term = latestTerm
+	rf.currentTerm = latestTerm
+	rf.votedFor = voteFor
+}
+
+func (rf *Raft) voteRefuse(reply *RequestVoteReply, latestTerm int) {
+	reply.VoteGranted = false
+	reply.Term = latestTerm
+}
+
+func (rf *Raft) appendLogs(args *AppendEntriesArgs) bool {
+	return true
+}
+
+func (rf *Raft) isNewThanMe(lastLogIndex uint64, lastLogTerm int) bool {
+	myLastLogTerm := 0
+	if rf.lastLogIndex > 0 {
+		myLastLogTerm = rf.logs[rf.lastLogIndex-1].Term
+	}
+
+	if lastLogTerm > myLastLogTerm ||
+		lastLogIndex >= rf.lastLogIndex {
+		return true
+	} else {
+		return false
+	}
+}
+
+func (rf *Raft) appliedLog() bool {
+	if rf.commitIndex > rf.lastApplied {
+		// 执行命令
+		rf.lastApplied++
+		return false
+	} else {
+		return true
+	}
 }
 
 func (rf *Raft) resetElectionTimer() {

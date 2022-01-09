@@ -1,22 +1,55 @@
 package raft
 
-import "log"
+import (
+	"log"
+	"os"
+)
 
-// Debugging
-const Debug = false
+// Logs
+const Debug = true
 
-func DPrintf(format string, a ...interface{}) (n int, err error) {
+var DebugLogger = log.New(os.Stdout, "DEBUG: ", log.LstdFlags)
+var InfoLogger = log.New(os.Stdout, "INFO: ", log.LstdFlags)
+var WarnLogger = log.New(os.Stdout, "WARN: ", log.LstdFlags)
+var ErrorLogger = log.New(os.Stdout, "ERROR: ", log.LstdFlags)
+
+func LogDebug(format string, a ...interface{}) {
 	if Debug {
-		log.Printf(format, a...)
+		DebugLogger.Printf(format, a...)
 	}
-	return
 }
 
-func IsLocalMsg(msgt MessageType) bool {
-	return msgt == MsgHup || msgt == MsgBeat || msgt == MsgUnreachable ||
-		msgt == MsgSnapStatus || msgt == MsgCheckQuorum
+func LogInfo(format string, a ...interface{}) {
+	InfoLogger.Printf(format, a...)
 }
 
-func IsResponseMsg(msgt MessageType) bool {
-	return msgt == MsgAppResp || msgt == MsgVoteResp || msgt == MsgHeartbeatResp || msgt == MsgUnreachable || msgt == MsgPreVoteResp
+func LogWarning(format string, a ...interface{}) {
+	WarnLogger.Printf(format, a...)
+}
+
+func LogError(format string, a ...interface{}) {
+	ErrorLogger.Printf(format, a...)
+}
+
+//func IsLocalMsg(msgt MessageType) bool {
+//	return msgt == MsgHup || msgt == MsgBeat || msgt == MsgUnreachable ||
+//		msgt == MsgSnapStatus || msgt == MsgCheckQuorum
+//}
+//
+//func IsResponseMsg(msgt MessageType) bool {
+//	return msgt == MsgAppResp || msgt == MsgVoteResp || msgt == MsgHeartbeatResp || msgt == MsgUnreachable || msgt == MsgPreVoteResp
+//}
+
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
